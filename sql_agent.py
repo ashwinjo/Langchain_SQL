@@ -16,7 +16,7 @@ load_dotenv()
 def get_db_connection():
     # Create SQL DB connection
     # print(db.get_usable_table_names())
-    db = SQLDatabase.from_uri("sqlite:////Users/ashwjosh/modernaipro/UdemyLangchainCourse/TextToSQL/chinook.db")
+    db = SQLDatabase.from_uri("sqlite:///chinook.db")
     return db
     
 def get_llm():
@@ -64,22 +64,42 @@ while True:
     data = io.StringIO(response)  # Simulating a CSV file
     df = pd.read_csv(data)
 
-    # # Print the DataFrame
-    # print(df)
+    #print(df)
+    # Create a prompt template to ask the LLM for the best plot
+    prompt = PromptTemplate(
+        input_variables=["data"],
+        template="""
+        Given the following dataset, output the Plotly code to render the visualization:
 
+        {data}
 
-# # Extract headers and data items
-# headers = df.columns.tolist()  # ['Artist', 'AlbumsSold']
-# data_items = df.values.tolist()  # [['Artist A', 120], ['Artist B', 90], ...]
+        Output should only be the python code, no extra information.
+        """
+    )
 
-# # Bar Graph Plot
-# plt.figure(figsize=(10, 6))
-# plt.bar(df[headers[0]], df[headers[1]], color="skyblue", edgecolor="black")
-# plt.title(f"{headers[0]} vs {headers[1]}", fontsize=16)
-# plt.xlabel(headers[0], fontsize=12)
-# plt.ylabel(headers[1], fontsize=12)
-# plt.grid(axis="y", linestyle="--", alpha=0.7)
-# plt.tight_layout()
+    # Set up the LLM and chain
+    llm = OpenAI(temperature=0.5)
+    chain = prompt | llm
 
-# # Show the plot
-# plt.show()
+    # Prepare the data (convert the DataFrame into a string format that LLM can understand)
+    data_string = df.head().to_string()
+
+    # Ask the LLM to suggest a Plotly graph
+    response = chain.invoke(input=data_string)
+
+    # Print the response (Python code for Plotly graph)
+    print(response)
+
+    # Run the generated code (after ensuring it's safe and valid)
+    # exec(response)
+    # Prepare a safe execution context
+    safe_locals = {}
+
+    # Execute the generated Plotly code safely
+    try:
+        exec(response, {}, safe_locals)
+        if 'fig' in safe_locals:
+            safe_locals['fig'].show()  # Show the plot if it exists
+    except Exception as e:
+        print(f"Error executing the code: {e}")
+
